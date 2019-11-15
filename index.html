@@ -92,9 +92,9 @@
 	
 	
 	
-	const img = new Image(64, 64); // Using optional size for image
+	const img = new Image(64, 64); 
 	
-	// Load an image of intrinsic size 300x227 in CSS pixels
+	
 	img.src = 'wall.png';
 
 	
@@ -254,7 +254,8 @@
 	var downPressed = false;
 
 
-	function keyDownHandler(event) {
+	function keyDownHandler(event)
+	{
 		if(event.keyCode == KEY_ARROW_RIGHT) {
 			rightPressed = true;
 		}
@@ -268,44 +269,45 @@
 	}
 
 	function keyUpHandler(event) {
-    if(event.keyCode == KEY_ARROW_RIGHT) {
-        rightPressed = false;
-    }
-    else if(event.keyCode == KEY_ARROW_LEFT) {
-        leftPressed = false;
-    }
-    if(event.keyCode == KEY_W) {
-    	upPressed = false;
-    }
+	    if(event.keyCode == KEY_ARROW_RIGHT) {
+		rightPressed = false;
+	    }
+	    else if(event.keyCode == KEY_ARROW_LEFT) {
+		leftPressed = false;
+	    }
+	    if(event.keyCode == KEY_W) {
+		upPressed = false;
+	    }
 
-}
+	}
 	
-function update(){
-	if(rightPressed){
-		if(player_view_angle > 360) player_view_angle = 0;
-		player_view_angle-=1.4;
-			
-	}
-	else if (leftPressed){
-		
-		if (player_view_angle > 360) player_view_angle = 0;	
-		player_view_angle+=1.4;
-				
-	}
-	if (upPressed){
-		move_forward(2.25);
-	}
-		
-	var fps = 59;
-		
-	setTimeout(function() {
-		requestAnimationFrame(update);
-	}, 1000 / fps);
-		
+	function update()
+	{
+		if(rightPressed){
+			if(player_view_angle > 360) player_view_angle = 0;
+			player_view_angle-=1.4;
+
+		}
+		else if (leftPressed){
+
+			if (player_view_angle > 360) player_view_angle = 0;	
+			player_view_angle+=1.4;
+
+		}
+		if (upPressed){
+			move_forward(2.25);
+		}
+
+		var fps = 59;
+
+		setTimeout(function() {
+			requestAnimationFrame(update);
+		}, 1000 / fps);
+
 		
 	draw_screen();
-}
-requestAnimationFrame(update);
+	}
+	requestAnimationFrame(update);
 </script>
 
 </html>
