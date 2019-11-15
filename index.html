@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<meta http-equiv="X-UA-Compatible" content="ie=edge" />
+	<title>Document</title>
+	<style>
+		.center {
+			
+			text-align: center;
+		}
+		#can{
+			margin-top: 30px;
+		}
+	</style>
+</head>
+
+<body class="center">
+	<img id="wall" src="wallv2.png" hidden>
+	<canvas id="can" width="320" height="200" style="border: 1px solid rgb(199, 199, 199);">
+	</canvas>
+</body>
+<script>
+	let world_map = [[]];
+	
+	//Construct the world map
+	for (let i = 0; i < 12; i++)
+	{
+		world_map[i] = [];
+		for (let j = 0; j < 9; j++) 
+		{
+			if ((i == 0 || j == 0) ||
+			(i == 11 || j == 8)) 
+			{
+				world_map[i][j] = 1;
+			} else world_map[i][j] = 0;
+		}
+	}
+	
+	world_map[6][6] = 1;
+	world_map[2][3] = 1;
+	console.log(world_map);
+	
+	function distance(x1, x2, y1, y2) {
+		return Math.sqrt(Math.pow((x1 - x2), 2) + Math.pow((y1 - y2), 2));
+	}
+	
+	const TILE_SIZE = 64;
+	const FOV 		= 60;
+	const HEIGHT	= 200;
+	const WIDTH		= 320;
+	const ANGLE_INC = FOV/WIDTH;
+	
+	//Center of the world
+	let player_x 	= 288;
+	let player_y 	= 288;
+	
+	let y_index 	= 2;
+	let x_index 	= 2;
+	
+	let inter_y 	= 0;
+	let inter_x 	= 0;
+	
+	let tile_offset;
+	
+	let delta_x 	= 0;
+	let delta_y 	= 0;
+	
+	let player_view_angle 	= 0;
+	
+	let current_column 		= 0;
+	
+	let horizontal_distance  = 0;
+	let vertical_distance	 = 0;
+	let ray_distance		 = 0;
+	let corrected_distance	 = 0;
+	let column_height		 = 0;
+	let projection_distance  = (WIDTH/2)/Math.tan(30*Math.PI /180);
+	let current_angle = 0;
+
+	let max_x_index = 0;
+	let max_y_index = 0;
+
+	let texture_offset = 0;
+	let intersect_type = "";
+	
+	let c = document.getElementById("can");
+	let ctx = c.getContext("2d");
+
+	
+	
+	
+	const img = new Image(64, 64); // Using optional size for image
+	
+	// Load an image of intrinsic size 300x227 in CSS pixels
+	img.src = 'wall.png';
+
+	
+	//Redraw the screen for every position and rotation update
+	function draw_screen() 
+	{
+		current_angle = player_view_angle + 30;
+		current_column 	= 0;
+		ctx.clearRect(0, 0, WIDTH, HEIGHT);
+
+		ctx.fillStyle = "#868f91";
+		ctx.fillRect(0,100,320,200);
+		ctx.fillStyle = "#6f7a80";
+		ctx.fillRect(0,0,320,100);
+		//For every angle draw a ray to the wall
+		for(let i = 0 ; i < FOV; i+= ANGLE_INC)
+		{
+			if(current_angle < 0) current_angle = 360 + current_angle;
+			if(current_angle > 360) current_angle = current_angle - 360;
+
+			//Find horizontal intersect
+			tile_offset = (current_angle < 180) ? -1 : 64;
+			inter_y = Math.floor(player_y/TILE_SIZE) * TILE_SIZE + tile_offset ;
+			inter_x = Math.floor(player_x + ((player_y - inter_y) / Math.tan(current_angle * Math.PI/180)));
+			
+			
+			//Get grid position
+			y_index = Math.floor (inter_y/TILE_SIZE);
+			x_index = Math.floor (inter_x/TILE_SIZE);
+			
+			let flip = (current_angle < 180) ? 1 : -1;
+			
+			delta_x = Math.floor(TILE_SIZE/Math.tan(current_angle * Math.PI/180)) * flip;
+			delta_y = (current_angle < 180) ? -TILE_SIZE : TILE_SIZE;
+			
+			
+			//find the horizontal wall hit
+			while(world_map[y_index] != undefined && world_map[y_index][x_index] != 1 )
+			{
+				inter_x += delta_x;
+				inter_y += delta_y;
+				
+				y_index = Math.abs( Math.floor (inter_y/TILE_SIZE));
+				x_index = Math.abs( Math.floor (inter_x/TILE_SIZE));
+				
+			}
+			
+			//Save the horizontal wall hit
+			horizontal_distance = distance(player_x,inter_x,player_y, inter_y);
+			max_x_index = inter_x;
+			max_y_index = inter_y;
+			intersect_type = "hor";
+			
+			//Find the vertical intersect
+			tile_offset = (current_angle > 90 && current_angle < 270) ? -1 : TILE_SIZE; 
+			
+			inter_x = Math.floor(player_x / TILE_SIZE) * TILE_SIZE + tile_offset;
+			inter_y = Math.floor(player_y + (player_x - inter_x) * Math.tan(current_angle * Math.PI/180));
+			
+			//Re get the tile position with the new intersection values
+			y_index = Math.floor (inter_y/TILE_SIZE);
+			x_index = Math.floor (inter_x/TILE_SIZE);
+			
+			flip = (current_angle > 90 && current_angle < 270) ? 1 : -1;
+			//If the ray is facing left tile size is negative 
+			delta_x = (current_angle > 90 && current_angle < 270) ? -TILE_SIZE : TILE_SIZE;
+			delta_y = Math.floor(TILE_SIZE * Math.tan(current_angle * Math.PI/180)) * flip;
+			
+			
+			//find the vertical wall hit
+			while(world_map[y_index] != undefined && world_map[y_index][x_index] != 1)
+			{
+				inter_x += delta_x;
+				inter_y += delta_y;
+				
+				y_index = Math.abs( Math.floor (inter_y/TILE_SIZE));
+				x_index = Math.abs( Math.floor (inter_x/TILE_SIZE));
+				
+			}
+			
+			vertical_distance = distance(player_x,inter_x,player_y,inter_y);
+
+			if(vertical_distance < horizontal_distance)
+			{
+				max_x_index = inter_x;
+				max_y_index = inter_y;
+				intersect_type = "ver";
+			}
+			//Check what ray is shorter
+			ray_distance = Math.min(vertical_distance,horizontal_distance);
+			
+			//Find the difference between the player view angle and the current angle relative to the viewing angle 
+			//Multiply the cos of the resulting angle with the ray distance to get the corrected distance
+			corrected_distance = ray_distance * Math.cos((player_view_angle - current_angle) * Math.PI/180);
+			
+			column_height = (TILE_SIZE/corrected_distance)*projection_distance;
+			
+			if(intersect_type == "ver")
+			{
+				texture_offset = max_y_index % TILE_SIZE;
+			}
+			else if(intersect_type == "hor"){
+				texture_offset = max_x_index % TILE_SIZE;
+			}
+
+			
+			let y = (HEIGHT/2) - column_height/2;
+
+			//Map the texture to the current column
+			ctx.drawImage(img,texture_offset,0,1,63,current_column,y,1,column_height);
+			
+			current_column++;
+			current_angle -= ANGLE_INC;
+		}
+		
+	}
+	draw_screen();
+	
+	
+	function move_forward(step)
+	{
+		let step_x;
+		let step_y;
+		let move_x = player_x;
+		let move_y = player_y;
+		let x_index;
+		let y_index;
+		//Move forward
+		step_x = Math.sin((player_view_angle-90) * Math.PI/180) * step;
+		step_y = Math.cos((player_view_angle-90) * Math.PI/180) * step;
+		
+		move_x -= step_x;
+		move_y -= step_y;
+		
+		x_index = Math.floor(move_x/TILE_SIZE);
+		y_index = Math.floor(move_y/TILE_SIZE);
+		
+		if(world_map[y_index][x_index] != 1)
+		{
+			player_y = move_y;
+			player_x = move_x;
+		}
+	}
+
+	//Keyboard control
+	const KEY_ARROW_LEFT = 37;
+	const KEY_ARROW_RIGHT = 39;
+	const KEY_W = 87; 
+
+
+	document.addEventListener('keydown', keyDownHandler, false);
+	document.addEventListener('keyup', keyUpHandler, false);
+
+	var rightPressed = false;
+	var leftPressed = false;
+	var upPressed = false;
+	var downPressed = false;
+
+
+	function keyDownHandler(event) {
+		if(event.keyCode == KEY_ARROW_RIGHT) {
+			rightPressed = true;
+		}
+		else if(event.keyCode == KEY_ARROW_LEFT) {
+			leftPressed = true;
+		}
+		if(event.keyCode == KEY_W) {
+			upPressed = true;
+		}
+
+	}
+
+	function keyUpHandler(event) {
+    if(event.keyCode == KEY_ARROW_RIGHT) {
+        rightPressed = false;
+    }
+    else if(event.keyCode == KEY_ARROW_LEFT) {
+        leftPressed = false;
+    }
+    if(event.keyCode == KEY_W) {
+    	upPressed = false;
+    }
+
+}
+	
+function update(){
+	if(rightPressed){
+		if(player_view_angle > 360) player_view_angle = 0;
+		player_view_angle-=1.4;
+			
+	}
+	else if (leftPressed){
+		
+		if (player_view_angle > 360) player_view_angle = 0;	
+		player_view_angle+=1.4;
+				
+	}
+	if (upPressed){
+		move_forward(2.25);
+	}
+		
+	var fps = 59;
+		
+	setTimeout(function() {
+		requestAnimationFrame(update);
+	}, 1000 / fps);
+		
+		
+	draw_screen();
+}
+requestAnimationFrame(update);
+</script>
+
+</html>
